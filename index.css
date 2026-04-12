@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { 
+    background-color: #020617;
+    color: #f1f5f9;
+}
+
+.font-mono-tech { font-family: "IBM Plex Mono", monospace; }
+.font-arabic { font-family: "IBM Plex Sans Arabic", sans-serif; }
+.glass-bg { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #020617; }
+::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+.animate-shake { animation: shake 0.2s ease-in-out 0s 2; }
