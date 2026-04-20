@@ -52,88 +52,97 @@ const App: React.FC = () => {
   const [minImpact, setMinImpact] = useState<'High' | 'Medium' | 'Low' | 'All'>('Medium');
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
-  const fetchIntelligence = async (retryCount = 0) => {
+  const buildPrompts = () => {
+    const today = new Date().toLocaleDateString('en-GB');
+    const system = `You are the Maxifyfx Institutional Intelligence Terminal (OS V4.5). Today is ${today}.
+STRICT OPERATIONAL DIRECTIVES:
+1. Generate realistic, plausible economic calendar events for the period from ${fromDate} to ${toDate}.
+2. Filter for ${minImpact === 'All' ? 'ALL' : minImpact} impact level events.
+3. Use professional financial terminology: 'Liquidity Sweeps', 'Order Blocks', 'Yield Curve Control', 'Mean Reversion'.
+4. Return ONLY valid JSON — no markdown, no preamble, no explanation whatsoever.`;
+
+    const user = `Language: ${lang === 'ar' ? 'Arabic' : 'English'}. Period: ${fromDate} to ${toDate}. Impact: ${minImpact}.
+Return ONLY this JSON:
+{"brief":{"narrative":"1-sentence summary","sentiment":"Bullish","macro_correlation":"brief note","critical_warning":"brief warning"},"events":[{"date":"YYYY-MM-DD","time":"HH:MM","event":"name","currency":"USD","impact":"High","forecast":"val","previous":"val","strategic_playbook":"max 8 words"}]}
+Generate exactly 3 events. All text in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
+
+    return { system, user };
+  };
+
+  const callClaude = async (system: string, user: string): Promise<string> => {
     const apiKey = (import.meta as any).env?.VITE_ANTHROPIC_API_KEY;
-    
-    if (!apiKey) {
-      setError(lang === 'ar' 
-        ? 'مفتاح API مفقود. يرجى التأكد من إعداد VITE_ANTHROPIC_API_KEY في ملف .env.local' 
-        : 'API Key missing. Please set VITE_ANTHROPIC_API_KEY in your .env.local file.');
+    if (!apiKey) throw new Error('NO_ANTHROPIC_KEY');
+    const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 2000,
+      system,
+      messages: [{ role: 'user', content: user }],
+    });
+    if (message.stop_reason === 'max_tokens') throw new Error('truncated');
+    const block = message.content.find(b => b.type === 'text');
+    if (!block || block.type !== 'text') throw new Error('no text');
+    return block.text;
+  };
+
+  const callGroq = async (system: string, user: string): Promise<string> => {
+    const apiKey = (import.meta as any).env?.VITE_GROQ_API_KEY;
+    if (!apiKey) throw new Error('NO_GROQ_KEY');
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 2000,
+        messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw Object.assign(new Error(err?.error?.message || res.statusText), { status: res.status });
+    }
+    const json = await res.json();
+    return json.choices?.[0]?.message?.content ?? '';
+  };
+
+  const fetchIntelligence = async () => {
+    const claudeKey = (import.meta as any).env?.VITE_ANTHROPIC_API_KEY;
+    const groqKey = (import.meta as any).env?.VITE_GROQ_API_KEY;
+    if (!claudeKey && !groqKey) {
+      setError(lang === 'ar' ? 'مفتاح API مفقود' : 'API key missing.');
       return;
     }
 
     setLoading(true);
     setError(null);
-    if (retryCount === 0) setData(null);
-    
+    setData(null);
+
+    const { system, user } = buildPrompts();
+    let raw = '';
+
     try {
-      const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-      const today = new Date().toLocaleDateString('en-GB');
-
-      const systemInstruction = `You are the Maxifyfx Institutional Intelligence Terminal (OS V4.5). Today is ${today}.
-
-STRICT OPERATIONAL DIRECTIVES:
-1. Generate realistic, plausible economic calendar events for the period from ${fromDate} to ${toDate}.
-2. Reference the most recent economic context from your knowledge.
-3. Filter for ${minImpact === 'All' ? 'ALL' : minImpact} impact level events.
-4. Use professional financial terminology: 'Liquidity Sweeps', 'Order Blocks', 'Yield Curve Control', 'Mean Reversion'.
-5. For every event, provide a 1-sentence institutional "Strategic Playbook".
-6. Return ONLY valid JSON — no markdown, no preamble, no explanation whatsoever.`;
-
-      const prompt = `Language: ${lang === 'ar' ? 'Arabic' : 'English'}.
-Period: ${fromDate} to ${toDate}. Impact filter: ${minImpact}.
-
-Return ONLY this exact JSON (no other text):
-{
-  "brief": {
-    "narrative": "1-sentence summary in ${lang === 'ar' ? 'Arabic' : 'English'}",
-    "sentiment": "Bullish",
-    "macro_correlation": "brief note",
-    "critical_warning": "brief warning"
-  },
-  "events": [{
-    "date": "YYYY-MM-DD",
-    "time": "HH:MM",
-    "event": "Event name in ${lang === 'ar' ? 'Arabic' : 'English'}",
-    "currency": "USD",
-    "impact": "High",
-    "forecast": "value",
-    "previous": "value",
-    "strategic_playbook": "max 10 words in ${lang === 'ar' ? 'Arabic' : 'English'}"
-  }]
-}
-
-Generate exactly 3 realistic economic events. Keep all text fields very short. All text in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
-
-      const message = await client.messages.create({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 2000,
-        system: systemInstruction,
-        messages: [{ role: 'user', content: prompt }],
-      });
-
-      if (message.stop_reason === 'max_tokens') throw new Error('Response too long, please try again');
-
-      const textBlock = message.content.find(b => b.type === 'text');
-      if (!textBlock || textBlock.type !== 'text') throw new Error('No text response from Claude');
-
-      const clean = textBlock.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
-      const parsed = JSON.parse(clean);
-
-      setData({ ...parsed, sources: [] });
-      setLastUpdated(new Date().toLocaleTimeString());
-    } catch (err: any) {
-      console.error('Fetch Error:', err);
-      const isRateLimit = err?.status === 429 || err?.message?.includes('rate_limit');
-      const maxRetries = isRateLimit ? 3 : 2;
-      const delay = isRateLimit ? Math.pow(2, retryCount) * 15000 : 1000;
-      if (retryCount < maxRetries) {
-        setTimeout(() => fetchIntelligence(retryCount + 1), delay);
+      raw = await callClaude(system, user);
+    } catch (claudeErr: any) {
+      console.warn('Claude failed, switching to Groq:', claudeErr.message);
+      try {
+        raw = await callGroq(system, user);
+      } catch (groqErr: any) {
+        console.error('Groq also failed:', groqErr.message);
+        setError(lang === 'ar'
+          ? `فشل النظام: ${groqErr.message || String(groqErr)}`
+          : `Deep data sync failed: ${groqErr.message || String(groqErr)}`);
+        setLoading(false);
         return;
       }
-      setError(lang === 'ar'
-        ? `فشل النظام: ${err.message || String(err)}`
-        : `Deep data sync failed: ${err.message || String(err)}`);
+    }
+
+    try {
+      const clean = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+      const parsed = JSON.parse(clean);
+      setData({ ...parsed, sources: [] });
+      setLastUpdated(new Date().toLocaleTimeString());
+    } catch {
+      setError(lang === 'ar' ? 'خطأ في تحليل البيانات' : 'Failed to parse response.');
     } finally {
       setLoading(false);
     }
