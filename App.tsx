@@ -100,15 +100,15 @@ Return ONLY this exact JSON (no other text):
     "forecast": "value", 
     "previous": "value", 
     "strategic_playbook": "1-sentence guide in ${lang === 'ar' ? 'Arabic' : 'English'}",
-    "detailed_analysis": "3-sentence deep dive in ${lang === 'ar' ? 'Arabic' : 'English'}"
+    "detailed_analysis": "1-sentence deep dive in ${lang === 'ar' ? 'Arabic' : 'English'}"
   }]
 }
 
-Generate 5-10 realistic economic events. All text in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
+Generate exactly 5 realistic economic events. All text in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
 
       const message = await client.messages.create({
         model: 'claude-sonnet-4-5',
-        max_tokens: 1500,
+        max_tokens: 2000,
         system: systemInstruction,
         messages: [{ role: 'user', content: prompt }],
       });
