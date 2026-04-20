@@ -52,10 +52,6 @@ const App: React.FC = () => {
   const [minImpact, setMinImpact] = useState<'High' | 'Medium' | 'Low' | 'All'>('Medium');
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    fetchIntelligence();
-  }, [fromDate, toDate, minImpact, lang]);
-
   const fetchIntelligence = async (retryCount = 0) => {
     const apiKey = (import.meta as any).env?.VITE_ANTHROPIC_API_KEY;
     
