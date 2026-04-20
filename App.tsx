@@ -112,7 +112,7 @@ Generate 5-10 realistic economic events. All text in ${lang === 'ar' ? 'Arabic' 
 
       const message = await client.messages.create({
         model: 'claude-sonnet-4-5',
-        max_tokens: 4096,
+        max_tokens: 1500,
         system: systemInstruction,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -127,12 +127,15 @@ Generate 5-10 realistic economic events. All text in ${lang === 'ar' ? 'Arabic' 
       setLastUpdated(new Date().toLocaleTimeString());
     } catch (err: any) {
       console.error('Fetch Error:', err);
-      if (retryCount < 2) {
-        setTimeout(() => fetchIntelligence(retryCount + 1), 1000);
+      const isRateLimit = err?.status === 429 || err?.message?.includes('rate_limit');
+      const maxRetries = isRateLimit ? 3 : 2;
+      const delay = isRateLimit ? Math.pow(2, retryCount) * 15000 : 1000;
+      if (retryCount < maxRetries) {
+        setTimeout(() => fetchIntelligence(retryCount + 1), delay);
         return;
       }
-      setError(lang === 'ar' 
-        ? `فشل النظام: ${err.message || String(err)}` 
+      setError(lang === 'ar'
+        ? `فشل النظام: ${err.message || String(err)}`
         : `Deep data sync failed: ${err.message || String(err)}`);
     } finally {
       setLoading(false);
