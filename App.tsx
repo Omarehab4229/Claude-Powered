@@ -85,26 +85,25 @@ Period: ${fromDate} to ${toDate}. Impact filter: ${minImpact}.
 
 Return ONLY this exact JSON (no other text):
 {
-  "brief": { 
-    "narrative": "2-sentence macro summary in ${lang === 'ar' ? 'Arabic' : 'English'}", 
+  "brief": {
+    "narrative": "1-sentence summary in ${lang === 'ar' ? 'Arabic' : 'English'}",
     "sentiment": "Bullish",
-    "macro_correlation": "short correlation note",
-    "critical_warning": "specific liquidity risk warning"
+    "macro_correlation": "brief note",
+    "critical_warning": "brief warning"
   },
   "events": [{
-    "date": "YYYY-MM-DD", 
-    "time": "HH:MM", 
-    "event": "Event name in ${lang === 'ar' ? 'Arabic' : 'English'}", 
-    "currency": "USD", 
-    "impact": "High", 
-    "forecast": "value", 
-    "previous": "value", 
-    "strategic_playbook": "1-sentence guide in ${lang === 'ar' ? 'Arabic' : 'English'}",
-    "detailed_analysis": "1-sentence deep dive in ${lang === 'ar' ? 'Arabic' : 'English'}"
+    "date": "YYYY-MM-DD",
+    "time": "HH:MM",
+    "event": "Event name in ${lang === 'ar' ? 'Arabic' : 'English'}",
+    "currency": "USD",
+    "impact": "High",
+    "forecast": "value",
+    "previous": "value",
+    "strategic_playbook": "max 10 words in ${lang === 'ar' ? 'Arabic' : 'English'}"
   }]
 }
 
-Generate exactly 5 realistic economic events. All text in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
+Generate exactly 3 realistic economic events. Keep all text fields very short. All text in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
 
       const message = await client.messages.create({
         model: 'claude-sonnet-4-5',
@@ -112,6 +111,8 @@ Generate exactly 5 realistic economic events. All text in ${lang === 'ar' ? 'Ara
         system: systemInstruction,
         messages: [{ role: 'user', content: prompt }],
       });
+
+      if (message.stop_reason === 'max_tokens') throw new Error('Response too long, please try again');
 
       const textBlock = message.content.find(b => b.type === 'text');
       if (!textBlock || textBlock.type !== 'text') throw new Error('No text response from Claude');
