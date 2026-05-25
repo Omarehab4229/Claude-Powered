@@ -56,15 +56,16 @@ const App: React.FC = () => {
     const today = new Date().toLocaleDateString('en-GB');
     const system = `You are the Maxifyfx Institutional Intelligence Terminal (OS V4.5). Today is ${today}.
 STRICT OPERATIONAL DIRECTIVES:
-1. Generate realistic, plausible economic calendar events for the period from ${fromDate} to ${toDate}.
-2. Filter for ${minImpact === 'All' ? 'ALL' : minImpact} impact level events.
-3. Use professional financial terminology: 'Liquidity Sweeps', 'Order Blocks', 'Yield Curve Control', 'Mean Reversion'.
-4. Return ONLY valid JSON — no markdown, no preamble, no explanation whatsoever.`;
+1. Generate ALL realistic economic calendar events for the FULL period from ${fromDate} to ${toDate}.
+2. Filter for ${minImpact === 'All' ? 'ALL' : minImpact} impact level events — do NOT skip any.
+3. Produce as many events as are realistic for the date range (typically 8-20+ events per week).
+4. Use professional financial terminology: 'Liquidity Sweeps', 'Order Blocks', 'Yield Curve Control', 'Mean Reversion'.
+5. Return ONLY valid JSON — no markdown, no preamble, no explanation whatsoever.`;
 
     const user = `Language: ${lang === 'ar' ? 'Arabic' : 'English'}. Period: ${fromDate} to ${toDate}. Impact: ${minImpact}.
-Return ONLY this JSON:
-{"brief":{"narrative":"1-sentence summary","sentiment":"Bullish","macro_correlation":"brief note","critical_warning":"brief warning"},"events":[{"date":"YYYY-MM-DD","time":"HH:MM","event":"name","currency":"USD","impact":"High","forecast":"val","previous":"val","strategic_playbook":"max 8 words"}]}
-Generate exactly 3 events. All text in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
+Return ONLY this JSON with ALL events for the full date range:
+{"brief":{"narrative":"1-sentence summary","sentiment":"Bullish","macro_correlation":"brief note","critical_warning":"brief warning"},"events":[{"date":"YYYY-MM-DD","time":"HH:MM","event":"name","currency":"USD","impact":"High","forecast":"val","previous":"val","strategic_playbook":"max 8 words","detailed_analysis":"2-3 sentence institutional analysis with specific entry/exit levels"}]}
+Generate EVERY relevant event across the entire period ${fromDate} to ${toDate} — no limit. All text in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
 
     return { system, user };
   };
@@ -74,8 +75,8 @@ Generate exactly 3 events. All text in ${lang === 'ar' ? 'Arabic' : 'English'}.`
     if (!apiKey) throw new Error('NO_ANTHROPIC_KEY');
     const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
     const message = await client.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 2000,
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
       system,
       messages: [{ role: 'user', content: user }],
     });
@@ -93,7 +94,7 @@ Generate exactly 3 events. All text in ${lang === 'ar' ? 'Arabic' : 'English'}.`
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        max_tokens: 2000,
+        max_tokens: 4096,
         messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
       }),
     });
